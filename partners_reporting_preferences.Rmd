@@ -1,0 +1,195 @@
+---
+title: "Food security partners' reporting preferences"
+date: "08/02/2022"
+output: 
+  html_document:
+    code_download: true
+    theme: readable
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    number_sections: false
+    collapsed: false
+---
+
+```{css, echo=FALSE}
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 70px;
+  margin: 2em 20px 40px 20px;
+  background-image: url("Myanmar_cluster_blue.png");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{=html}
+<style>
+    body .main-container {
+        max-width: 1280px;
+    }
+</style>
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.width=12, fig.height = 9, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(scales)
+theme_set(theme_light())
+```
+
+```{r}
+
+partner_type <- read_csv("implementing_partner_type.csv",
+                       show_col_types = FALSE)
+
+reporting <-read_excel("Food_Security_Partners_Reporting_Preferences_-_all_versions_-_False_-_2022-02-07-09-18-32.xlsx") %>% 
+  rename(org_name = What_is_the_name_of_your_organisation,
+         reporting_schedule = What_is_your_organis_or_reporting_the_5Ws,
+         reporting_frequency = Is_your_organisation_tatements_that_apply,
+         reporting_disaggregation = What_is_your_organisation_s_ca) %>%  
+  mutate(org_name = recode(org_name, 
+                           "UNWFP" ="WFP", "CESVI Myanmar" = "CESVI", "United Nations World Food Programme" = "WFP")) %>% 
+  left_join(partner_type %>%  select(implementing_partners, implementing_partner_type), by = c("org_name" = "implementing_partners")) %>% 
+  mutate(implementing_partner_type = case_when(org_name %in% c("Ethnic Equality Initiative-EEI", "Myanmar Red Cross Society") ~ "NNGO",
+                                               org_name %in% c("Save the Children International", "CESVI", "Malteser International",
+                                                               "CARE International in Myanmar", "Cordaid") ~ "INGO",
+                                               org_name == "FAO" ~ "UN",
+                                               org_name == "Myanmar Cash Working Group" ~ "Other",
+                                               TRUE ~ implementing_partner_type))
+
+```
+
+<br><br><br>
+
+### 1. Number of organisations and persons who reported
+
+A total of **`r reporting %>% nrow()`** participants from **`r reporting %>% distinct(org_name) %>% nrow()`** organisations submitted information on the food security reporting preferences survey. 
+
+```{r}
+reporting %>% 
+  group_by(org_name, implementing_partner_type) %>%  
+  summarise(persons = n(), .groups = "drop") %>% 
+  mutate(org_name = fct_reorder(org_name, persons)) %>% 
+  arrange(org_name) %>% 
+  ggplot(aes(persons, org_name, fill = implementing_partner_type)) +  
+  geom_col() +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 13), 
+        axis.text.x = element_text(size = 13),
+        plot.title = element_text(size = 20)) + 
+  labs(x = "Participants", 
+       y = "",
+       title = "Number of participants per organisation")
+```
+
+<br><br><br>
+
+### 2. Which day of the month do partners prefer reporting the 5Ws on?
+
+<br>
+
+```{r}
+reporting %>%
+  group_by(org_name) %>% 
+  slice(which.min(`_index`)) %>% 
+  group_by(reporting_schedule) %>% 
+  summarise(count = n()) %>% 
+  adorn_percentages("col") %>% 
+  mutate(reporting_schedule = fct_relevel(reporting_schedule, c("30th day of the month", "15th day of the month", "5th day of the month"))) %>% 
+  ggplot(aes(count, reporting_schedule, fill = reporting_schedule)) + 
+  geom_col() +
+  geom_text(aes(label = percent(count)), hjust = -0.2) +
+  scale_x_continuous(labels = percent, limits = c(0, 0.65), breaks = seq(0, 0.8, by = 0.2)) +
+  labs(x = "% of responses", 
+       y = "", 
+       title = "Which day of the month do partners prefer submitting the 5Ws on?") +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 13), 
+        axis.text.x = element_text(size = 13),
+        plot.title = element_text(size = 18))
+```
+
+<br><br><br>
+
+### 3. What is the preferred frequency for reporting 5Ws?
+
+<br>
+
+```{r}
+reporting %>%  
+  mutate(reporting_frequency = recode(reporting_frequency,
+                                      "We are willing to submit the 5Ws on a monthly basis starting March" =
+                                        "Willing and able to report monthly",
+                                      "We are willing, but do not have sufficient staff capacity to switch to monthly submission" = 
+                                        "Willing to report monthly,\nbut insufficient capcity",
+                                      "We can only shift to monthly but need technical support to systematise the process" = 
+                                        "Need technical support to\nsystematise the process", 
+                                      "We prefer to continue reporting at quarterly intervals" =
+                                        "Prefer quarterly reporting")) %>%   
+  group_by(org_name) %>% 
+  slice(which.min(`_index`)) %>% 
+  group_by(reporting_frequency) %>% 
+  summarise(count = n()) %>% 
+  ungroup() %>% 
+  adorn_percentages("col") %>% 
+  mutate(reporting_frequency = fct_reorder(reporting_frequency, count)) %>% 
+  ggplot(aes(x = count, y = reporting_frequency, fill = reporting_frequency)) +
+  geom_col() + 
+  geom_text(aes(label = percent(count)), hjust = -0.2) +
+  scale_x_continuous(labels = percent, limits = c(0, 0.65), breaks = seq(0, 0.8, by = 0.2)) +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12),
+        plot.title = element_text(size = 17)) +
+  labs(x = "% of responses", 
+       y = "", 
+       title = "Partners' willingness and ability to submit the 5Ws on a monthly basis") 
+  
+```
+
+<br><br><br>
+
+### 4. Reporting beneficiaries disaggregated by age, sex and disability
+
+<br>
+
+```{r}
+reporting %>%
+  mutate(reporting_disaggregation = 
+           recode(reporting_disaggregation,
+                  "We are able to and currently report disaggregated beneficiary data by sex, age and disability status in the 5Ws" =
+                    "Currently reporting beneficiaries\ndisaggregated by sex, age and disability",
+                  "We are able to collect disaggregated beneficiary data but are not reporting it in the 5Ws" = 
+                    "Collecting disaggregated data\nbut not reporting it in the 5Ws", 
+                  "We are unable to collect disaggregated beneficiary data due to staffing constraints" = 
+                    "Unable to collect because of \nstaffing constraints", 
+                  "Technical support would help us start collecting the disaggregated data" = 
+                  "Technical support needed to\ncollect disaggregated data")) %>% 
+  group_by(org_name) %>% 
+  slice(which.min(`_index`)) %>% 
+  group_by(reporting_disaggregation) %>% 
+  summarise(count = n(), .groups = "drop") %>% 
+  adorn_percentages("col") %>% 
+  mutate(reporting_frequency = fct_reorder(reporting_disaggregation, count)) %>% 
+  ggplot(aes(x = count, y = reporting_frequency, fill = reporting_frequency)) +
+  geom_col() + 
+  geom_text(aes(label = percent(count)), hjust = -0.2) +
+  scale_x_continuous(labels = percent, limits = c(0, 0.65), breaks = seq(0, 0.8, by = 0.2)) +
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 12), 
+        axis.text.x = element_text(size = 12),
+        plot.title = element_text(size = 17)) +
+  labs(x = "% of responses", 
+       y = "", 
+       title = "Partners' capacities to submit sex and age-disaggregated data") 
+
+```
+
