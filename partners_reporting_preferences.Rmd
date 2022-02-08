@@ -68,7 +68,7 @@ reporting <-read_excel("Food_Security_Partners_Reporting_Preferences_-_all_versi
 
 <br><br><br>
 
-### 1. Number of organisations and persons who reported
+### 1. Number of organisations and persons who responded
 
 A total of **`r reporting %>% nrow()`** participants from **`r reporting %>% distinct(org_name) %>% nrow()`** organisations submitted information on the food security reporting preferences survey. 
 
